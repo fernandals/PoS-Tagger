@@ -20,13 +20,24 @@ def tokenize( lines_list ):
 
     return sentence_list
 
-with open('doc/training_0_18') as train:
-    train_lines = train.readlines()
-    tagged_train = tokenize(train_lines)
+def extract_pairs( tagged_sentences ):
+    pairs = []
+    words = []
+
+    for sent in tagged_sentences:
+        for pair in sent:
+            pairs.append(pair)
+            words.append(pair[0])
+
+    return (pairs, words)
 
 print("------------------------------------------")
 print("+                PoS Tagger              +")
 print("------------------------------------------")
+
+with open('doc/training_0_18') as train:
+    train_lines = train.readlines()
+    tagged_train = tokenize(train_lines)
 
 tagger = PoSTagger(tagged_train)
 tagger.fit()
@@ -51,13 +62,7 @@ with open('doc/development_19_21') as dev:
     dev_lines = dev.readlines()
     tagged_dev = tokenize(dev_lines)
 
-dev_pairs = []
-dev_words = []
-
-for sentence in tagged_dev:
-    for pair in sentence:
-        dev_pairs.append(pair)
-        dev_words.append(pair[0])
+dev_pairs, dev_words = extract_pairs(tagged_dev)
 
 print(">>> PREDICTING TAGS. THIS MIGHT TAKE A WHILE...")
 start = time.time()
@@ -77,13 +82,7 @@ with open('doc/testing_22_24') as test:
     test_lines = test.readlines()
     tagged_test = tokenize(test_lines)
 
-test_pairs = []
-test_words = []
-
-for sentence in tagged_dev:
-    for pair in sentence:
-        test_pairs.append(pair)
-        test_words.append(pair[0])
+test_pairs, test_words = extract_pairs(tagged_test)
 
 pred_test = tagger.predict(test_words[:30])
 print(pred_test[:10])
