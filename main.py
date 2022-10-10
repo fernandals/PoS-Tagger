@@ -1,25 +1,89 @@
+from pathlib import Path
+import time
+
 from pos_tagger import PoSTagger
 
-def check_invalid_symb( symb ):
-    # regex??
-    if (symb != '.') and (symb != ',') and (symb != '#') and (symb != '$') and (symb != '``') and (symb != ':') and (symb != '') and (symb != "''"):
-        return 1
-    return 0
-
-with open('doc/training_0_18') as f:
-    lines = f.readlines()
-
-    word_tags = []   # corpus
+def tokenize( lines_list ):
+    sentence_list = []   # a list of sentences (also lists)
     # turning lines into tuples of type (word, tag)
-    for line in lines:
-        line = line.lower().strip().split(' ')     # cleaning line: lowercased, \n removed
-                                                   # and turned into a list
+    for line in lines_list:
+        # cleaning line: lowercased, \n removed
+        # and turned into a list
+        line = line.lower().strip().split(' ')
+
+        sentence = []
         for elem in line:
             pair = tuple( elem.split('_') )
-            # remove invalid tags
-            if check_invalid_symb( pair[1] ):
-                word_tags.append( pair )
+            sentence.append( pair )
 
-    
-    tagger = PoSTagger(word_tags)
-    print(tagger.ngrams(2))
+        sentence_list.append( sentence )
+
+    return sentence_list
+
+with open('doc/training_0_18') as train:
+    train_lines = train.readlines()
+    tagged_train = tokenize(train_lines)
+
+print("------------------------------------------")
+print("+                PoS Tagger              +")
+print("------------------------------------------")
+
+tagger = PoSTagger(tagged_train)
+tagger.fit()
+
+print("# TRAINING MODEL")
+
+print(">>> SEARCHING FOR SERIALIZED DATA.")
+path = Path('tags_matrix.pickle')
+if path.is_file():
+    print(">>> FILE FOUND! LOADING...")
+    tagger.load_matrix()
+    print(">>> LOADED.")
+else:
+    print(">>> NO FILE FOUND. TRAINING...")
+    tagger.train()
+    tagger.serialize_matrix()
+    print(">>> TRAINED AND SERIALIZED.")
+
+print("# DEVELOPMENT SECTION")
+
+with open('doc/development_19_21') as dev:
+    dev_lines = dev.readlines()
+    tagged_dev = tokenize(dev_lines)
+
+dev_pairs = []
+dev_words = []
+
+for sentence in tagged_dev:
+    for pair in sentence:
+        dev_pairs.append(pair)
+        dev_words.append(pair[0])
+
+print(">>> PREDICTING TAGS. THIS MIGHT TAKE A WHILE...")
+start = time.time()
+pred_dev = tagger.predict(dev_words[:50])
+end = time.time()
+diff = end-start
+
+print("Time taken in seconds: ", diff)
+# accuracy
+check = [i for i, j in zip(pred_dev, dev_pairs[:50]) if i == j]
+accuracy = len(check)/len(dev_pairs[:50])
+print("Accuracy: ", accuracy*100)
+
+print("# FINAL TEST")
+
+with open('doc/testing_22_24') as test:
+    test_lines = test.readlines()
+    tagged_test = tokenize(test_lines)
+
+test_pairs = []
+test_words = []
+
+for sentence in tagged_dev:
+    for pair in sentence:
+        test_pairs.append(pair)
+        test_words.append(pair[0])
+
+pred_test = tagger.predict(test_words[:30])
+print(pred_test[:10])
